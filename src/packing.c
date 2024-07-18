@@ -524,46 +524,27 @@ inline void xnn_pack_qs8_qc4w_gemm_bl_goi_w_nr8_kr4(
         int32_t ksum[/*nr=*/8];
         float ksum_muls[/*nr=*/8];  // Multipliers for ksum
         float scales[/*nr=*/8];
-        const uint8_t* ip[/*nr=*/8];
         uint8_t* op[/*nr=*/8];
 
         // TODO simplify/simdify this
         for (size_t nr_block_offset = 0; nr_block_offset < nr; nr_block_offset++) {
           ksum[nr_block_offset] = 0;
           // TODO prefetch next cache-line in the same row
-          ip[nr_block_offset] =
-            (const uint8_t*) ((uintptr_t) k + (((nr_block_start + nr_block_offset) * kc + kr_block_start) >> 1));
           op[nr_block_offset] = (uint8_t*)((uintptr_t) packed_weights + nr_block_offset * kr);  // 2 nibbles
           scales[nr_block_offset] = scale[(nr_block_start + nr_block_offset) * num_blocks + block_index];
           ksum_muls[nr_block_offset] = -1 * (float) izp * 16 * scales[nr_block_offset];
         }
 
-        uint8x8_t w0x0 = vld1_u8(ip[0]);
-        uint8x8_t w0x1 = vld1_u8(ip[1]);
-        uint8x8_t w0x2 = vld1_u8(ip[2]);
-        uint8x8_t w0x3 = vld1_u8(ip[3]);
-        uint8x8_t w0x4 = vld1_u8(ip[4]);
-        uint8x8_t w0x5 = vld1_u8(ip[5]);
-        uint8x8_t w0x6 = vld1_u8(ip[6]);
-        uint8x8_t w0x7 = vld1_u8(ip[7]);
-
-        uint8x8_t w1x0 = vext_u8(v_zero, w0x0, 4);
-        uint8x8_t w1x1 = vext_u8(v_zero, w0x1, 4);
-        uint8x8_t w1x2 = vext_u8(v_zero, w0x2, 4);
-        uint8x8_t w1x3 = vext_u8(v_zero, w0x3, 4);
-        uint8x8_t w1x4 = vext_u8(v_zero, w0x4, 4);
-        uint8x8_t w1x5 = vext_u8(v_zero, w0x5, 4);
-        uint8x8_t w1x6 = vext_u8(v_zero, w0x6, 4);
-        uint8x8_t w1x7 = vext_u8(v_zero, w0x7, 4);
-
-        uint8x8_t w2x0 = vext_u8(w1x0, w0x0, 4);
-        uint8x8_t w2x1 = vext_u8(w1x1, w0x1, 4);
-        uint8x8_t w2x2 = vext_u8(w1x2, w0x2, 4);
-        uint8x8_t w2x3 = vext_u8(w1x3, w0x3, 4);
-        uint8x8_t w2x4 = vext_u8(w1x4, w0x4, 4);
-        uint8x8_t w2x5 = vext_u8(w1x5, w0x5, 4);
-        uint8x8_t w2x6 = vext_u8(w1x6, w0x6, 4);
-        uint8x8_t w2x7 = vext_u8(w1x7, w0x7, 4);
+        const uint8_t* ip = k;
+        // Load 4 bytes and duplicate it across the two halves of our vector registers.
+        uint8x8_t w2x0 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t*)&ip[(((nr_block_start + 0) * kc + kr_block_start) / 2)]));
+        uint8x8_t w2x1 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t*)&ip[(((nr_block_start + 1) * kc + kr_block_start) / 2)]));
+        uint8x8_t w2x2 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t*)&ip[(((nr_block_start + 2) * kc + kr_block_start) / 2)]));
+        uint8x8_t w2x3 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t*)&ip[(((nr_block_start + 3) * kc + kr_block_start) / 2)]));
+        uint8x8_t w2x4 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t*)&ip[(((nr_block_start + 4) * kc + kr_block_start) / 2)]));
+        uint8x8_t w2x5 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t*)&ip[(((nr_block_start + 5) * kc + kr_block_start) / 2)]));
+        uint8x8_t w2x6 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t*)&ip[(((nr_block_start + 6) * kc + kr_block_start) / 2)]));
+        uint8x8_t w2x7 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t*)&ip[(((nr_block_start + 7) * kc + kr_block_start) / 2)]));
 
         uint8x8_t w3x0 = vand_u8(w2x0, v_and_mask);
         uint8x8_t w3x1 = vand_u8(w2x1, v_and_mask);
